@@ -1,9 +1,8 @@
 <?php
 
-namespace App\Http\Controllers\Api\Webhooks;
+namespace App\Http\Controllers\Webhooks\WooCommerce;
 
-use App\Http\Controllers\Controller;
-use App\Jobs\SyncWooCommerceProductJob;
+use App\Jobs\WooCommerce\SyncProductJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -13,7 +12,7 @@ use Illuminate\Http\Request;
  * Dispatches a sync job which fetches the canonical state from WC and
  * upserts the local Product row (plus any variations on variable products).
  */
-class WooCommerceProductController extends Controller
+class ProductController
 {
     public function __invoke(Request $request): JsonResponse
     {
@@ -21,7 +20,7 @@ class WooCommerceProductController extends Controller
             'id' => ['required', 'integer', 'min:1'],
         ]);
 
-        SyncWooCommerceProductJob::dispatch($validated['id']);
+        SyncProductJob::dispatch($validated['id']);
 
         return response()->json(['accepted' => true], 202);
     }

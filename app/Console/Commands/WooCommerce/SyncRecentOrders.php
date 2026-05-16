@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Console\Commands;
+namespace App\Console\Commands\WooCommerce;
 
-use App\Jobs\SyncWooCommerceOrderJob;
+use App\Jobs\WooCommerce\SyncOrderJob;
 use App\Services\WooCommerce\WooCommerceService;
 use App\Support\WooCommerce\WooCommerceClient;
 use Illuminate\Console\Attributes\Description;
@@ -33,7 +33,7 @@ class SyncRecentOrders extends Command
         $fetched = $woocommerce->prefetchUnknownProducts($orders);
         $this->info("Fetched {$fetched} new product(s) from WooCommerce.");
 
-        $orders->each(SyncWooCommerceOrderJob::dispatch(...));
+        $orders->each(SyncOrderJob::dispatch(...));
 
         $this->info("Dispatched {$orders->count()} order sync job(s).");
 

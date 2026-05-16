@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Middleware;
+namespace App\Http\Middleware\WooCommerce;
 
 use Closure;
 use Illuminate\Http\Request;
@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Validates incoming WooCommerce webhook requests against a shared secret
  * sent in the X-Webhook-Secret header.
  */
-class VerifyWooCommerceWebhook
+class VerifyWebhook
 {
     /**
      * @param  Closure(Request): (Response)  $next

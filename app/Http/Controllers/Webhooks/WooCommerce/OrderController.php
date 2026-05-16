@@ -1,10 +1,9 @@
 <?php
 
-namespace App\Http\Controllers\Api\Webhooks;
+namespace App\Http\Controllers\Webhooks\WooCommerce;
 
 use App\Data\WooCommerce\OrderData;
-use App\Http\Controllers\Controller;
-use App\Jobs\SyncWooCommerceOrderJob;
+use App\Jobs\WooCommerce\SyncOrderJob;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,13 +13,13 @@ use Illuminate\Http\Request;
  * Hydrates the payload into an OrderData DTO, then dispatches the
  * heavy lifting to a queue job so the webhook returns quickly.
  */
-class WooCommerceOrderController extends Controller
+class OrderController
 {
     public function __invoke(Request $request): JsonResponse
     {
         $order = OrderData::from($request->all());
 
-        SyncWooCommerceOrderJob::dispatch($order);
+        SyncOrderJob::dispatch($order);
 
         return response()->json(['accepted' => true], 202);
     }

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Jobs\WooCommerce;
 
 use App\Data\WooCommerce\OrderData;
 use App\Services\WooCommerce\WooCommerceService;
@@ -14,7 +14,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
  * Dispatched from the order.updated webhook and from the nightly
  * recent-orders sync command.
  */
-class SyncWooCommerceOrderJob implements ShouldQueue
+class SyncOrderJob implements ShouldQueue
 {
     use Queueable;
 

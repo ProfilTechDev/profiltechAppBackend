@@ -5,7 +5,7 @@ namespace App\Services\WooCommerce;
 use App\Data\WooCommerce\OrderData;
 use App\Data\WooCommerce\OrderLineData;
 use App\Data\WooCommerce\ProductData;
-use App\Jobs\SyncWooCommerceProductJob;
+use App\Jobs\WooCommerce\SyncProductJob;
 use App\Models\Order;
 use App\Models\OrderLine;
 use App\Models\Product;
@@ -100,7 +100,7 @@ class WooCommerceService
     /**
      * @param  Collection<int, OrderData>  $orders
      * @return array{0: array<int, int>, 1: array<int, array<int, int>>}
-     *         Tuple of [simple wc ids, variations grouped by parent wc id].
+     *                                                                   Tuple of [simple wc ids, variations grouped by parent wc id].
      */
     private function collectUnknownSellableIds(Collection $orders): array
     {
@@ -159,7 +159,7 @@ class WooCommerceService
 
         if ($data->type === 'variable') {
             foreach ($data->variations as $variationId) {
-                SyncWooCommerceProductJob::dispatch($variationId, $wcId);
+                SyncProductJob::dispatch($variationId, $wcId);
             }
         }
 

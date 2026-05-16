@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Jobs\WooCommerce;
 
 use App\Services\WooCommerce\WooCommerceService;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -13,7 +13,7 @@ use Illuminate\Queue\Middleware\WithoutOverlapping;
  * Dispatched from the product.updated webhook and recursively from the
  * service itself when a variable product fans out to its variations.
  */
-class SyncWooCommerceProductJob implements ShouldQueue
+class SyncProductJob implements ShouldQueue
 {
     use Queueable;
 
