@@ -16,5 +16,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('custom-orders')->name('custom-orders.')->group(function () {
         Route::get('/', [CustomOrderController::class, 'list'])->name('list');
+
+        Route::prefix('{order}/submission')->name('submission.')->group(function () {
+            Route::get('/', [CustomOrderController::class, 'submission'])->name('show');
+            Route::patch('/', [CustomOrderController::class, 'update'])->name('update');
+            Route::post('/send', [CustomOrderController::class, 'send'])->name('send');
+        });
     });
 });

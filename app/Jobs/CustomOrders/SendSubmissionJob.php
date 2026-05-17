@@ -1,0 +1,94 @@
+<?php
+
+namespace App\Jobs\CustomOrders;
+
+use App\Enums\SubmissionStatus;
+use App\Models\OrderSubmission;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Facades\Log;
+use Throwable;
+
+/**
+ * Sends an order submission to the chosen provider.
+ *
+ * Tolerates upstream rate limits (e.g. Google's per-minute caps) with a
+ * generous retry policy: up to 10 attempts spaced 10 minutes apart.
+ * On success, stamps `sent_at` on the submission so the UI reflects it.
+ */
+class SendSubmissionJob implements ShouldQueue
+{
+    use Queueable;
+
+    public int $tries = 10;
+
+    public int $backoff = 600;
+
+    public function __construct(public readonly OrderSubmission $submission) {}
+
+    public function handle(): void
+    {
+        Log::info('Submission send attempt starting', [
+            'submission_id' => $this->submission->id,
+            'order_id' => $this->submission->order_id,
+            'provider_id' => $this->submission->provider_id,
+            'attempt' => $this->attempts(),
+        ]);
+
+        try {
+            // TODO: integrate actual provider send (Gmail/Google API).
+            // Throw on transport failure so the queue triggers a retry.
+
+            $this->submission->update([
+                'status' => SubmissionStatus::Sent,
+                'sent_at' => now(),
+            ]);
+
+            Log::info('Submission send succeeded', [
+                'submission_id' => $this->submission->id,
+                'sent_at' => $this->submission->sent_at?->toIso8601String(),
+            ]);
+        } catch (Throwable $e) {
+            // Status stays 'queued' — only failed() (after all retries
+            // are exhausted) flips it to 'failed'.
+            Log::warning('Submission send attempt failed, will retry', [
+                'submission_id' => $this->submission->id,
+                'attempt' => $this->attempts(),
+                'remaining' => $this->tries - $this->attempts(),
+                'error' => $e->getMessage(),
+            ]);
+
+            throw $e;
+        }
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        $this->submission->update(['status' => SubmissionStatus::Failed]);
+
+        Log::critical('Submission send permanently failed after all retries', [
+            'submission_id' => $this->submission->id,
+            'order_id' => $this->submission->order_id,
+            'provider_id' => $this->submission->provider_id,
+            'attempts' => $this->tries,
+            'error' => $exception->getMessage(),
+        ]);
+    }
+
+    /**
+     * Prevent the same submission from being sent twice concurrently
+     * (e.g. if a manual re-send is triggered while a queued attempt is
+     * still pending).
+     *
+     * @return array<int, object>
+     */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping("submission:{$this->submission->id}"))
+                ->releaseAfter(60)
+                ->expireAfter(7200),
+        ];
+    }
+}

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * Represents an order synced from WooCommerce.
@@ -19,7 +20,7 @@ class Order extends Model
     ];
 
     protected $casts = [
-        'wc_modified_at' => 'datetime',
+        'wc_modified_at' => 'immutable_datetime',
     ];
 
     /**
@@ -28,6 +29,14 @@ class Order extends Model
     public function lines(): HasMany
     {
         return $this->hasMany(OrderLine::class);
+    }
+
+    /**
+     * @return HasOne<OrderSubmission, $this>
+     */
+    public function submission(): HasOne
+    {
+        return $this->hasOne(OrderSubmission::class);
     }
 
     /**
