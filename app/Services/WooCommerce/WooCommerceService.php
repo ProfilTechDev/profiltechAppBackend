@@ -2,9 +2,11 @@
 
 namespace App\Services\WooCommerce;
 
+use App\Data\WooCommerce\AddressData;
 use App\Data\WooCommerce\OrderData;
 use App\Data\WooCommerce\OrderLineData;
 use App\Data\WooCommerce\ProductData;
+use App\Enums\AddressType;
 use App\Jobs\WooCommerce\SyncProductJob;
 use App\Models\Order;
 use App\Models\OrderLine;
@@ -51,6 +53,8 @@ class WooCommerceService
                 ['wc_modified_at' => $orderData->date_modified_gmt],
             );
 
+            $this->writeCustomerAndAddresses($order, $orderData);
+
             $order->lines()->delete();
 
             foreach ($orderData->line_items as $line) {
@@ -66,6 +70,46 @@ class WooCommerceService
 
             return $order;
         });
+    }
+
+    /**
+     * Replace the order's customer and billing/shipping addresses with the
+     * latest snapshot from the WC payload.
+     */
+    private function writeCustomerAndAddresses(Order $order, OrderData $orderData): void
+    {
+        $order->customer()->updateOrCreate(
+            ['order_id' => $order->id],
+            [
+                'first_name' => $orderData->billing->first_name,
+                'last_name' => $orderData->billing->last_name,
+                'email' => (string) $orderData->billing->email,
+                'phone' => $orderData->billing->phone,
+            ],
+        );
+
+        $this->upsertAddress($order, AddressType::Billing, $orderData->billing);
+        $this->upsertAddress($order, AddressType::Shipping, $orderData->shipping);
+    }
+
+    private function upsertAddress(Order $order, AddressType $type, AddressData $address): void
+    {
+        $order->addresses()->updateOrCreate(
+            ['type' => $type],
+            [
+                'first_name' => $address->first_name,
+                'last_name' => $address->last_name,
+                'company' => $address->company,
+                'address_1' => $address->address_1,
+                'address_2' => $address->address_2,
+                'city' => $address->city,
+                'state' => $address->state,
+                'postcode' => $address->postcode,
+                'country' => $address->country,
+                'email' => $address->email,
+                'phone' => $address->phone,
+            ],
+        );
     }
 
     /**

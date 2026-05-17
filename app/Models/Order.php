@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AddressType;
 use Illuminate\Database\Eloquent\Attributes\Scope;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -37,6 +38,38 @@ class Order extends Model
     public function submission(): HasOne
     {
         return $this->hasOne(OrderSubmission::class);
+    }
+
+    /**
+     * @return HasOne<OrderCustomer, $this>
+     */
+    public function customer(): HasOne
+    {
+        return $this->hasOne(OrderCustomer::class);
+    }
+
+    /**
+     * @return HasMany<OrderAddress, $this>
+     */
+    public function addresses(): HasMany
+    {
+        return $this->hasMany(OrderAddress::class);
+    }
+
+    /**
+     * @return HasOne<OrderAddress, $this>
+     */
+    public function billingAddress(): HasOne
+    {
+        return $this->hasOne(OrderAddress::class)->where('type', AddressType::Billing);
+    }
+
+    /**
+     * @return HasOne<OrderAddress, $this>
+     */
+    public function shippingAddress(): HasOne
+    {
+        return $this->hasOne(OrderAddress::class)->where('type', AddressType::Shipping);
     }
 
     /**

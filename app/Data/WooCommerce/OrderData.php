@@ -24,6 +24,8 @@ class OrderData extends Data
         public int $id,
         #[WithCast(DateTimeInterfaceCast::class, format: ['Y-m-d\TH:i:s', DATE_ATOM])]
         public ?CarbonImmutable $date_modified_gmt,
+        public AddressData $billing,
+        public AddressData $shipping,
         #[DataCollectionOf(OrderLineData::class)]
         public DataCollection $line_items,
     ) {}

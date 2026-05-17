@@ -24,7 +24,7 @@ class CustomOrderController
     public function list(): LengthAwarePaginator
     {
         $orders = Order::whereIsCustom()
-            ->with(['lines.snapshot', 'submission'])
+            ->with(['lines.snapshot', 'submission', 'customer'])
             ->latest('wc_modified_at')
             ->paginate(20);
 

@@ -25,6 +25,7 @@ class OrderData extends Data
         public int $id,
         public int $wc_order_id,
         public ?CarbonImmutable $wc_modified_at,
+        public ?CustomerData $customer,
         public ?SubmissionStatus $submission_status,
         #[DataCollectionOf(OrderLineData::class)]
         public DataCollection $lines,
@@ -36,6 +37,7 @@ class OrderData extends Data
             id: $order->id,
             wc_order_id: $order->wc_order_id,
             wc_modified_at: $order->wc_modified_at,
+            customer: $order->customer ? CustomerData::fromModel($order->customer) : null,
             submission_status: $order->submission?->status,
             lines: OrderLineData::collect($order->lines, DataCollection::class),
         );
