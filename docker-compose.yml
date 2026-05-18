@@ -1,0 +1,59 @@
+# Dokploy "Compose" service for the Laravel backend.
+#
+# Builds the image once and runs two containers from it:
+#   - api      → FrankenPHP + Octane worker mode (serves HTTP requests)
+#   - horizon  → `php artisan horizon` (queue workers + scheduler)
+#
+# MariaDB and Redis are NOT defined here — they are provisioned as standalone
+# Dokploy "Database" services in the same project and reached over the shared
+# `dokploy-network` by their service name.
+#
+# Environment variables are injected by Dokploy from the UI's Environment tab
+# and read from the implicit .env that Dokploy renders next to this file.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: profiltech-backend:latest
+    restart: unless-stopped
+    expose:
+      - "80"
+    env_file:
+      - .env
+    volumes:
+      - storage:/app/storage/app
+    networks:
+      - default
+      - dokploy-network
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/up"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  horizon:
+    # Reuse the image built by the `api` service — Compose tags it as
+    # profiltech-backend:latest, so horizon does not trigger a second build.
+    image: profiltech-backend:latest
+    restart: unless-stopped
+    command: ["php", "artisan", "horizon"]
+    env_file:
+      - .env
+    volumes:
+      - storage:/app/storage/app
+    networks:
+      - default
+      - dokploy-network
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  storage:
+
+networks:
+  dokploy-network:
+    external: true
