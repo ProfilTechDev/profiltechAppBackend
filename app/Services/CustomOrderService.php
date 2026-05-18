@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Data\CustomOrders\ProviderData;
 use App\Data\CustomOrders\SubmissionLineData;
 use App\Enums\SubmissionStatus;
 use App\Jobs\CustomOrders\SendSubmissionJob;
@@ -24,6 +25,23 @@ class CustomOrderService
     public function getSubmission(Order $order): ?OrderSubmission
     {
         return $order->submission()->with('lines')->first();
+    }
+
+    /**
+     * List of providers the user can pick when sending.
+     *
+     * @return Collection<int, ProviderData>
+     */
+    public function providers(): Collection
+    {
+        return collect(config('custom_orders.providers'))
+            ->map(fn (array $provider, string $id): ProviderData => new ProviderData(
+                id: $id,
+                name: $provider['name'],
+                email: $provider['email'],
+                language: $provider['language'],
+            ))
+            ->values();
     }
 
     /**

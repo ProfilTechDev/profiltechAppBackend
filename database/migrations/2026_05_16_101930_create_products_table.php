@@ -17,6 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('wc_parent_id')->nullable()->index();
             $table->string('name');
             $table->boolean('is_custom')->default(false);
+            $table->boolean('has_thickness')->default(false);
             $table->timestamps();
         });
     }

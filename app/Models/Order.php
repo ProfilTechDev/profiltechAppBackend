@@ -17,10 +17,21 @@ class Order extends Model
 {
     protected $fillable = [
         'wc_order_id',
+        'wc_number',
+        'status',
+        'currency',
+        'total',
+        'payment_method_title',
+        'customer_note',
+        'date_created',
+        'date_paid',
         'wc_modified_at',
     ];
 
     protected $casts = [
+        'total' => 'decimal:2',
+        'date_created' => 'immutable_datetime',
+        'date_paid' => 'immutable_datetime',
         'wc_modified_at' => 'immutable_datetime',
     ];
 

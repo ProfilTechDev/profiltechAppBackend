@@ -50,7 +50,17 @@ class WooCommerceService
 
             $order = Order::updateOrCreate(
                 ['wc_order_id' => $orderData->id],
-                ['wc_modified_at' => $orderData->date_modified_gmt],
+                [
+                    'wc_number' => $orderData->number,
+                    'status' => $orderData->status,
+                    'currency' => $orderData->currency,
+                    'total' => $orderData->total,
+                    'payment_method_title' => $orderData->payment_method_title,
+                    'customer_note' => $orderData->customer_note,
+                    'date_created' => $orderData->date_created_gmt,
+                    'date_paid' => $orderData->date_paid_gmt,
+                    'wc_modified_at' => $orderData->date_modified_gmt,
+                ],
             );
 
             $this->writeCustomerAndAddresses($order, $orderData);
@@ -180,12 +190,45 @@ class WooCommerceService
 
     private function upsertProductFromData(ProductData $data, ?int $parentWcId): Product
     {
+        // Variations don't carry categories themselves — they inherit
+        // has_thickness from the parent product.
+        $hasThickness = $parentWcId !== null
+            ? $this->ensureParentProduct($parentWcId)->has_thickness
+            : $data->hasThickness();
+
         return Product::updateOrCreate(
             ['wc_id' => $data->id],
             [
                 'wc_parent_id' => $parentWcId,
                 'name' => $data->name,
                 'is_custom' => $data->is_custom,
+                'has_thickness' => $hasThickness,
+            ],
+        );
+    }
+
+    /**
+     * Make sure the parent product is in the DB so its has_thickness
+     * value is available for variations to inherit. Fetches from WC if
+     * we haven't seen it before.
+     */
+    private function ensureParentProduct(int $parentWcId): Product
+    {
+        $parent = Product::firstWhere('wc_id', $parentWcId);
+
+        if ($parent) {
+            return $parent;
+        }
+
+        $parentData = $this->client->getProduct($parentWcId);
+
+        return Product::updateOrCreate(
+            ['wc_id' => $parentData->id],
+            [
+                'wc_parent_id' => null,
+                'name' => $parentData->name,
+                'is_custom' => $parentData->is_custom,
+                'has_thickness' => $parentData->hasThickness(),
             ],
         );
     }
@@ -233,12 +276,24 @@ class WooCommerceService
      */
     private function writeSnapshot(OrderLine $orderLine, Product $product, OrderLineData $line): void
     {
-        $orderLine->snapshot()->updateOrCreate(
+        $snapshot = $orderLine->snapshot()->updateOrCreate(
             ['order_line_id' => $orderLine->id],
             [
                 'name' => $line->name !== '' ? $line->name : $product->name,
                 'is_custom' => $product->is_custom,
             ],
         );
+
+        $snapshot->lineAttributes()->delete();
+
+        foreach ($line->extractAttributes() as $position => $attr) {
+            $snapshot->lineAttributes()->create([
+                'position' => $position,
+                'key' => $attr['key'],
+                'label' => $attr['label'],
+                'value' => $attr['value'],
+                'raw_value' => $attr['raw_value'] !== '' ? $attr['raw_value'] : null,
+            ]);
+        }
     }
 }

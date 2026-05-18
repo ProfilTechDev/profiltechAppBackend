@@ -3,11 +3,14 @@
 namespace App\Jobs\CustomOrders;
 
 use App\Enums\SubmissionStatus;
+use App\Mail\CustomOrders\SubmissionMail;
 use App\Models\OrderSubmission;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -37,8 +40,17 @@ class SendSubmissionJob implements ShouldQueue
         ]);
 
         try {
-            // TODO: integrate actual provider send (Gmail/Google API).
-            // Throw on transport failure so the queue triggers a retry.
+            $providerEmail = (string) config(
+                "custom_orders.providers.{$this->submission->provider_id}.email",
+            );
+
+            if ($providerEmail === '') {
+                throw new RuntimeException(
+                    "Missing email for provider '{$this->submission->provider_id}'. Check config/custom_orders.php and .env.",
+                );
+            }
+
+            Mail::send(new SubmissionMail($this->submission));
 
             $this->submission->update([
                 'status' => SubmissionStatus::Sent,

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Orders;
 
 use App\Data\CustomOrders\SubmissionData;
 use App\Data\Orders\OrderData;
@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Services\CustomOrderService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Collection;
 
 /**
  * Lists orders that contain at least one line whose snapshot is marked
@@ -21,10 +22,18 @@ class CustomOrderController
         private readonly CustomOrderService $service,
     ) {}
 
+    /**
+     * Available vendors a submission can be sent to.
+     */
+    public function providers(): Collection
+    {
+        return $this->service->providers();
+    }
+
     public function list(): LengthAwarePaginator
     {
         $orders = Order::whereIsCustom()
-            ->with(['lines.snapshot', 'submission', 'customer'])
+            ->with(['lines.snapshot.lineAttributes', 'lines.product', 'submission', 'customer'])
             ->latest('wc_modified_at')
             ->paginate(20);
 

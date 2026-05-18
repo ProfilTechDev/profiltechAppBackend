@@ -16,10 +16,12 @@ class Product extends Model
         'wc_parent_id',
         'name',
         'is_custom',
+        'has_thickness',
     ];
 
     protected $casts = [
         'is_custom' => 'boolean',
+        'has_thickness' => 'boolean',
     ];
 
     /**
