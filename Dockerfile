@@ -10,13 +10,17 @@ WORKDIR /app
 # Copy only files needed to resolve dependencies first (layer cache)
 COPY composer.json composer.lock ./
 
-# Install production dependencies without running scripts (artisan not available yet)
+# Install production dependencies without running scripts (artisan not available
+# yet). --ignore-platform-reqs skips PHP-extension checks here because this
+# image is composer-only; the required extensions (pcntl, redis, etc.) are
+# installed in the runtime stage further down.
 RUN composer install \
         --no-dev \
         --no-scripts \
         --no-autoloader \
         --no-interaction \
-        --prefer-dist
+        --prefer-dist \
+        --ignore-platform-reqs
 
 # Copy the rest of the application source
 COPY . .
