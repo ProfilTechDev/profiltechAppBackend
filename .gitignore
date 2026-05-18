@@ -25,3 +25,8 @@ _ide_helper.php
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Caddy state dir created by FrankenPHP when run locally
+**/caddy
+# Local FrankenPHP binary downloaded by `php artisan octane:install`
+/frankenphp

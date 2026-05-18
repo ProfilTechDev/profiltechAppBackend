@@ -1,0 +1,82 @@
+# Version control
+.git
+.gitattributes
+.gitignore
+.github
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies (installed inside the image)
+vendor
+node_modules
+
+# Build artifacts & local caches
+public/build
+public/hot
+public/storage
+storage/app/public
+storage/debugbar
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/testing/*
+storage/framework/views/*
+storage/logs/*
+bootstrap/cache/*
+
+# Keep .gitignore inside the cache dirs so structure exists
+!storage/framework/cache/.gitignore
+!storage/framework/sessions/.gitignore
+!storage/framework/testing/.gitignore
+!storage/framework/views/.gitignore
+!storage/logs/.gitignore
+!bootstrap/cache/.gitignore
+
+# Tests (not needed in prod image)
+tests
+phpunit.xml
+.phpunit.cache
+.phpunit.result.cache
+
+# Editor & tooling
+.editorconfig
+.vscode
+.idea
+.fleet
+.zed
+*.swp
+*.swo
+.DS_Store
+
+# AI / agent metadata (not needed in image)
+.agents
+.claude
+.codex
+.mcp.json
+AGENTS.md
+CLAUDE.md
+boost.json
+
+# Project docs
+README.md
+LICENSE
+
+# Frontend tooling (not used by the API)
+package.json
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+vite.config.js
+resources/js
+resources/css
+
+# Docker itself
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Local FrankenPHP binary created by `php artisan octane:install` —
+# not needed in the image (FrankenPHP is provided by the base image).
+/frankenphp

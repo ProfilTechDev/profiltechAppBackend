@@ -1,0 +1,43 @@
+{
+	# Disable Caddy admin API (not needed in a container)
+	admin off
+
+	# Structured logs to stdout — Dokploy/Traefik collect via docker logs
+	log {
+		output stdout
+		format json
+		level INFO
+	}
+
+	# Trust requests forwarded from Dokploy's Traefik on the internal network
+	servers {
+		trusted_proxies static private_ranges
+	}
+
+	# FrankenPHP runtime config — Octane worker mode.
+	# The number of worker processes defaults to 4 and can be overridden by
+	# setting FRANKENPHP_NUM_THREADS in the container environment (tune to ~CPU
+	# cores). Workers boot Laravel once and serve requests from memory.
+	frankenphp {
+		worker {
+			file ./public/frankenphp-worker.php
+			num {$FRANKENPHP_NUM_THREADS:4}
+		}
+	}
+}
+
+:80 {
+	root * /app/public
+
+	encode zstd br gzip
+
+	# Serve static files when present, otherwise hand off to PHP
+	php_server
+
+	header {
+		-Server
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+}
