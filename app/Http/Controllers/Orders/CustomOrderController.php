@@ -4,12 +4,16 @@ namespace App\Http\Controllers\Orders;
 
 use App\Data\CustomOrders\SubmissionData;
 use App\Data\Orders\OrderData;
+use App\Http\Filters\Orders\OrderSearchFilter;
+use App\Http\Filters\Orders\SubmissionStatusFilter;
 use App\Http\Requests\CustomOrderUpdateRequest;
 use App\Models\Order;
 use App\Services\CustomOrderService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Collection;
+use Spatie\QueryBuilder\AllowedFilter;
+use Spatie\QueryBuilder\QueryBuilder;
 
 /**
  * Lists orders that contain at least one line whose snapshot is marked
@@ -32,10 +36,17 @@ class CustomOrderController
 
     public function list(): LengthAwarePaginator
     {
-        $orders = Order::whereIsCustom()
+        $orders = QueryBuilder::for(Order::query())
+            ->whereIsCustom()
+            ->allowedFilters(
+                AllowedFilter::custom('status', new SubmissionStatusFilter),
+                AllowedFilter::custom('search', new OrderSearchFilter),
+            )
+            ->allowedSorts('wc_modified_at', 'date_created', 'total')
+            ->defaultSort('-wc_modified_at')
             ->with(['lines.snapshot.lineAttributes', 'lines.product', 'submission', 'customer'])
-            ->latest('wc_modified_at')
-            ->paginate(20);
+            ->paginate(20)
+            ->appends(request()->query());
 
         return OrderData::collect($orders);
     }
