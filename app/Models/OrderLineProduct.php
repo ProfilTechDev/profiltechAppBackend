@@ -54,24 +54,34 @@ class OrderLineProduct extends Model
      * Each override may rewrite the label and remap display values
      * (e.g. "Med dripstopdug + 29 kr. pr. m²" → "Ja").
      *
+     * `$lang` picks which label/value-map variant to use (`'da'` or `'en'`).
+     * Frontend always passes the default — only vendor emails to non-Danish
+     * providers pass `'en'`. Falls back to the Danish variant when the
+     * requested language is missing from config.
+     *
      * Color lookup is NOT done here — frontend joins against the
      * `/products/colors` endpoint via `raw_value`.
      *
      * @return Collection<int, AttributeData>
      */
-    public function visibleAttributes(): Collection
+    public function visibleAttributes(string $lang = 'da'): Collection
     {
         $overrides = (array) config('custom_orders.attribute_overrides', []);
+        $labelKey = $lang === 'da' ? 'label' : "label_{$lang}";
+        $valueMapKey = $lang === 'da' ? 'value_map' : "value_map_{$lang}";
 
         return $this->lineAttributes
             ->filter(fn (OrderLineAttribute $attr): bool => isset($overrides[$attr->key]))
-            ->map(function (OrderLineAttribute $attr) use ($overrides): AttributeData {
+            ->map(function (OrderLineAttribute $attr) use ($overrides, $labelKey, $valueMapKey): AttributeData {
                 $override = $overrides[$attr->key];
 
                 return new AttributeData(
                     key: $attr->key,
-                    label: (string) ($override['label'] ?? $attr->label),
-                    value: $this->mapValue($attr->value, (array) ($override['value_map'] ?? [])),
+                    label: (string) ($override[$labelKey] ?? $override['label'] ?? $attr->label),
+                    value: $this->mapValue(
+                        $attr->value,
+                        (array) ($override[$valueMapKey] ?? $override['value_map'] ?? []),
+                    ),
                     raw_value: $attr->raw_value,
                 );
             })

@@ -42,14 +42,51 @@ class SubmissionMail extends Mailable
 
     public function content(): Content
     {
-        $this->submission->loadMissing('lines.orderLine.snapshot');
+        $this->submission->loadMissing('lines.orderLine.snapshot.lineAttributes');
+
+        $lang = (string) config(
+            "custom_orders.providers.{$this->submission->provider_id}.language",
+            'da',
+        );
 
         return new Content(
+            view: 'emails.custom-orders.submission-html',
             text: 'emails.custom-orders.submission-text',
             with: [
                 'body' => (string) $this->submission->message,
                 'lines' => $this->submission->lines,
+                'lang' => $lang,
+                't' => $this->translations($lang),
             ],
         );
+    }
+
+    /**
+     * Structural labels used by both the html and text views. Attribute
+     * labels (Farve, Længde, …) come from config/custom_orders.php and are
+     * resolved per-line via OrderLineProduct::visibleAttributes($lang).
+     *
+     * @return array<string, string>
+     */
+    private function translations(string $lang): array
+    {
+        $strings = [
+            'da' => [
+                'product' => 'Produkt',
+                'quantity_header' => 'Antal',
+                'thickness' => 'Tykkelse',
+                'quantity_unit' => 'stk',
+                'unknown_product' => 'Ukendt vare',
+            ],
+            'en' => [
+                'product' => 'Product',
+                'quantity_header' => 'Quantity',
+                'thickness' => 'Thickness',
+                'quantity_unit' => 'pcs',
+                'unknown_product' => 'Unknown product',
+            ],
+        ];
+
+        return $strings[$lang] ?? $strings['da'];
     }
 }

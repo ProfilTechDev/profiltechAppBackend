@@ -34,9 +34,13 @@ return [
     /*
     | Attribute whitelist with optional label and value overrides.
     |
-    |   key         The WC meta key (taxonomy slug for pa_*, otherwise raw)
-    |   label       Optional override of the displayed label
-    |   value_map   Optional map from display-value → simplified value
+    |   key            The WC meta key (taxonomy slug for pa_*, otherwise raw)
+    |   label          Danish label — used by the frontend (always da) and as
+    |                  fallback for the email when an _en variant is missing
+    |   label_en       English label — used for vendor emails when the provider
+    |                  is configured with language=en
+    |   value_map      Map from raw display-value → simplified Danish value
+    |   value_map_en   Map from raw display-value → simplified English value
     |
     | Keys not listed here are hidden from frontend + email. Add new ones
     | when WC starts sending fields we want to surface.
@@ -44,25 +48,38 @@ return [
     'attribute_overrides' => [
         'pa_vaelg-farve' => [
             'label' => 'Farve',
+            'label_en' => 'Color',
         ],
         'pa_klikfals-farve' => [
             'label' => 'Farve',
+            'label_en' => 'Color',
         ],
         'Indtast længde: (cm)' => [
             'label' => 'Længde (cm)',
+            'label_en' => 'Length (cm)',
         ],
         'med-eller-uden-dripstopdug' => [
             'label' => 'Dripstop',
+            'label_en' => 'Dripstop',
             'value_map' => [
                 'Med' => 'Ja',
                 'Uden' => 'Nej',
             ],
+            'value_map_en' => [
+                'Med' => 'Yes',
+                'Uden' => 'No',
+            ],
         ],
         'med-eller-uden-dripstop-antikondens-dug' => [
             'label' => 'Dripstop',
+            'label_en' => 'Dripstop',
             'value_map' => [
                 'Med' => 'Ja',
                 'Uden' => 'Nej',
+            ],
+            'value_map_en' => [
+                'Med' => 'Yes',
+                'Uden' => 'No',
             ],
         ],
     ],
