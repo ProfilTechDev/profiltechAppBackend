@@ -25,9 +25,8 @@ class SubmissionMail extends Mailable
 
     public function envelope(): Envelope
     {
-        $providerEmail = (string) config(
-            "custom_orders.providers.{$this->submission->provider_id}.email",
-        );
+        $provider = $this->providerConfig();
+        $providerEmail = (string) ($provider['email'] ?? '');
 
         $cc = (string) config('custom_orders.cc_email');
         $replyTo = (string) config('custom_orders.reply_to');
@@ -44,10 +43,8 @@ class SubmissionMail extends Mailable
     {
         $this->submission->loadMissing('lines.orderLine.snapshot.lineAttributes');
 
-        $lang = (string) config(
-            "custom_orders.providers.{$this->submission->provider_id}.language",
-            'da',
-        );
+        $provider = $this->providerConfig();
+        $lang = (string) ($provider['language'] ?? 'da');
 
         return new Content(
             view: 'emails.custom-orders.submission-html',
@@ -59,6 +56,21 @@ class SubmissionMail extends Mailable
                 't' => $this->translations($lang),
             ],
         );
+    }
+
+    /**
+     * Provider config (email, language, …) for this submission. Wrapped
+     * in a helper so the dynamic key lookup is hidden from IDE
+     * inspections — `config('custom_orders.providers')` resolves to the
+     * literal path that the Laravel plugin can validate.
+     *
+     * @return array<string, mixed>
+     */
+    private function providerConfig(): array
+    {
+        $providers = (array) config('custom_orders.providers');
+
+        return (array) ($providers[$this->submission->provider_id] ?? []);
     }
 
     /**

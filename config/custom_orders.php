@@ -21,12 +21,12 @@ return [
     'providers' => [
         'byggprofiler' => [
             'name' => 'Byggprofiler',
-            'email' => 'mattias@mkieler.com', // 'order@byggprofiler.se',
+            'email' => 'order@byggprofiler.se',
             'language' => 'da',
         ],
         'romania' => [
-            'name' => 'Romænien',
-            'email' => 'mattias@mkieler.com', // 'order@romania.com',
+            'name' => 'Bilka',
+            'email' => 'export@bilka.ro',
             'language' => 'en',
         ],
     ],

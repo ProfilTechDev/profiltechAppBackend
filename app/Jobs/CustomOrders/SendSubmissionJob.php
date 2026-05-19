@@ -41,9 +41,7 @@ class SendSubmissionJob implements ShouldQueue
         ]);
 
         try {
-            $providerEmail = (string) config(
-                "custom_orders.providers.{$this->submission->provider_id}.email",
-            );
+            $providerEmail = (string) ($this->providerConfig()['email'] ?? '');
 
             if ($providerEmail === '') {
                 throw new RuntimeException(
@@ -51,7 +49,7 @@ class SendSubmissionJob implements ShouldQueue
                 );
             }
 
-            // Mail::send(new SubmissionMail($this->submission));
+            Mail::send(new SubmissionMail($this->submission));
 
             $this->submission->update([
                 'status' => SubmissionStatus::Sent,
@@ -111,6 +109,21 @@ class SendSubmissionJob implements ShouldQueue
             'attempts' => $this->tries,
             'error' => $exception->getMessage(),
         ]);
+    }
+
+    /**
+     * Provider config (email, language, …) for this submission. Wrapped
+     * in a helper so the dynamic key lookup is hidden from IDE
+     * inspections — `config('custom_orders.providers')` resolves to the
+     * literal path that the Laravel plugin can validate.
+     *
+     * @return array<string, mixed>
+     */
+    private function providerConfig(): array
+    {
+        $providers = (array) config('custom_orders.providers');
+
+        return (array) ($providers[$this->submission->provider_id] ?? []);
     }
 
     /**
