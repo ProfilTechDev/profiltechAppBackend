@@ -1,8 +1,9 @@
 # Dokploy "Compose" service for the Laravel backend.
 #
-# Builds the image once and runs two containers from it:
+# Builds the image once and runs three containers from it:
 #   - api      → FrankenPHP + Octane worker mode (serves HTTP requests)
 #   - horizon  → `php artisan horizon` (queue workers + scheduler)
+#   - reverb   → `php artisan reverb:start` (WebSocket server)
 #
 # MariaDB and Redis are NOT defined here — they are provisioned as standalone
 # Dokploy "Database" services in the same project and reached over the shared
@@ -50,6 +51,31 @@ services:
     depends_on:
       api:
         condition: service_started
+
+  reverb:
+    # Same image as api, just a different command. Reverb is a long-running
+    # WebSocket server that listens on port 8080 inside the container.
+    image: profiltech-backend:latest
+    restart: unless-stopped
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+    env_file:
+      - .env
+    expose:
+      - "8080"
+    networks:
+      - default
+      - dokploy-network
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      # Reverb does not expose an HTTP probe — a TCP probe via PHP is enough
+      # to know the listener is up.
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 8080) ? 0 : 1);"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
 volumes:
   storage:

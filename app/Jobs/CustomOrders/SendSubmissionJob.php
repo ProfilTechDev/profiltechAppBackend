@@ -3,6 +3,7 @@
 namespace App\Jobs\CustomOrders;
 
 use App\Enums\SubmissionStatus;
+use App\Events\CustomOrders\SubmissionStatusUpdated;
 use App\Mail\CustomOrders\SubmissionMail;
 use App\Models\OrderSubmission;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -50,12 +51,34 @@ class SendSubmissionJob implements ShouldQueue
                 );
             }
 
-            Mail::send(new SubmissionMail($this->submission));
+            // Mail::send(new SubmissionMail($this->submission));
 
             $this->submission->update([
                 'status' => SubmissionStatus::Sent,
                 'sent_at' => now(),
             ]);
+
+            Log::info('Broadcast: about to dispatch', [
+                'submission_id' => $this->submission->id,
+                'broadcaster' => config('broadcasting.default'),
+                'reverb_host' => config('broadcasting.connections.reverb.options.host'),
+                'reverb_port' => config('broadcasting.connections.reverb.options.port'),
+                'reverb_app_id_set' => (bool) config('broadcasting.connections.reverb.app_id'),
+                'channel' => "orders.{$this->submission->order_id}.submission",
+            ]);
+
+            try {
+                SubmissionStatusUpdated::dispatch($this->submission);
+                Log::info('Broadcast: dispatch returned without throwing', [
+                    'submission_id' => $this->submission->id,
+                ]);
+            } catch (Throwable $broadcastError) {
+                Log::error('Broadcast: dispatch threw', [
+                    'submission_id' => $this->submission->id,
+                    'error' => $broadcastError->getMessage(),
+                    'trace' => $broadcastError->getTraceAsString(),
+                ]);
+            }
 
             Log::info('Submission send succeeded', [
                 'submission_id' => $this->submission->id,
@@ -78,6 +101,8 @@ class SendSubmissionJob implements ShouldQueue
     public function failed(Throwable $exception): void
     {
         $this->submission->update(['status' => SubmissionStatus::Failed]);
+
+        SubmissionStatusUpdated::dispatch($this->submission);
 
         Log::critical('Submission send permanently failed after all retries', [
             'submission_id' => $this->submission->id,
