@@ -79,7 +79,7 @@ class WooCommerceService
             }
 
             return $order;
-        });
+        }, attempts: 5);
     }
 
     /**

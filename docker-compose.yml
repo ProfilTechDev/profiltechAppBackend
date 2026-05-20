@@ -1,9 +1,11 @@
 # Dokploy "Compose" service for the Laravel backend.
 #
-# Builds the image once and runs three containers from it:
-#   - api      → FrankenPHP + Octane worker mode (serves HTTP requests)
-#   - horizon  → `php artisan horizon` (queue workers + scheduler)
-#   - reverb   → `php artisan reverb:start` (WebSocket server)
+# Builds the image once and runs four containers from it:
+#   - api        → FrankenPHP + Octane worker mode (serves HTTP requests)
+#   - horizon    → `php artisan horizon` (queue workers)
+#   - reverb     → `php artisan reverb:start` (WebSocket server)
+#   - scheduler  → `php artisan schedule:work` (runs scheduled tasks every minute,
+#                  including horizon:snapshot which feeds the metrics dashboard)
 #
 # MariaDB and Redis are NOT defined here — they are provisioned as standalone
 # Dokploy "Database" services in the same project and reached over the shared
@@ -45,6 +47,22 @@ services:
       - .env
     volumes:
       - storage:/app/storage/app
+    networks:
+      - default
+      - dokploy-network
+    depends_on:
+      api:
+        condition: service_started
+
+  scheduler:
+    # Same image, runs the Laravel scheduler in a long-lived loop. This is what
+    # ticks `horizon:snapshot` every 5 minutes (without it, the metrics graphs
+    # in Horizon stay empty) plus any other tasks defined in routes/console.php.
+    image: profiltech-backend:latest
+    restart: unless-stopped
+    command: ["php", "artisan", "schedule:work"]
+    env_file:
+      - .env
     networks:
       - default
       - dokploy-network
