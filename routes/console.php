@@ -9,6 +9,8 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('orders:sync-recent')
-    ->dailyAt('03:00')
+    ->hourly()
     ->withoutOverlapping()
     ->onOneServer();
+
+Schedule::command('horizon:snapshot')->everyFiveMinutes();

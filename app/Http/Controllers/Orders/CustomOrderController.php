@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Orders;
 use App\Data\CustomOrders\SubmissionData;
 use App\Data\Orders\OrderData;
 use App\Http\Filters\Orders\OrderSearchFilter;
+use App\Http\Filters\Orders\OrderStatusFilter;
 use App\Http\Filters\Orders\SubmissionStatusFilter;
 use App\Http\Requests\CustomOrderUpdateRequest;
 use App\Models\Order;
@@ -36,16 +37,19 @@ class CustomOrderController
 
     public function list(): LengthAwarePaginator
     {
+        $perPage = min(100, max(1, (int) request()->query('per_page', 20)));
+
         $orders = QueryBuilder::for(Order::query())
             ->whereIsCustom()
             ->allowedFilters(
-                AllowedFilter::custom('status', new SubmissionStatusFilter),
+                AllowedFilter::custom('order_status', new OrderStatusFilter),
+                AllowedFilter::custom('submission_status', new SubmissionStatusFilter),
                 AllowedFilter::custom('search', new OrderSearchFilter),
             )
             ->allowedSorts('wc_modified_at', 'date_created', 'total')
             ->defaultSort('-wc_modified_at')
             ->with(['lines.snapshot.lineAttributes', 'lines.product', 'submission', 'customer'])
-            ->paginate(20)
+            ->paginate($perPage)
             ->appends(request()->query());
 
         return OrderData::collect($orders);
