@@ -2,6 +2,7 @@
 
 namespace App\Events\CustomOrders;
 
+use App\Enums\SubmissionStatus;
 use App\Models\OrderSubmission;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
@@ -26,7 +27,11 @@ class SubmissionStatusUpdated implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public function __construct(public readonly OrderSubmission $submission) {}
+    public function __construct(
+        public readonly OrderSubmission $submission,
+        public readonly ?SubmissionStatus $previousStatus = null,
+        public readonly ?string $reason = null,
+    ) {}
 
     /**
      * @return array<int, PrivateChannel>
