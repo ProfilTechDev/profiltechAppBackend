@@ -2,18 +2,18 @@
 
 namespace App\Http\Filters\Orders;
 
+use App\Http\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
-use Spatie\QueryBuilder\Filters\Filter;
 
 /**
  * `?filter[search]=mattias` — matches WC order id, WC display number,
  * or the customer's first/last/full name.
  */
-class OrderSearchFilter implements Filter
+class OrderSearchFilter extends Filter
 {
-    public function __invoke(Builder $query, mixed $value, string $property): void
+    protected function apply(Builder $query, string $value): void
     {
-        $needle = '%'.(string) $value.'%';
+        $needle = '%'.$value.'%';
 
         $query->where(function (Builder $q) use ($needle): void {
             $q->where('wc_order_id', 'like', $needle)

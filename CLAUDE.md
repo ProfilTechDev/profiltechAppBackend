@@ -6,14 +6,25 @@ This section codifies architecture decisions established for this codebase. New 
 
 ```
 Controller ──► Service ──► Event ──► Listener(s)
-                  │
-                  └─► Job (when async) ──► Service
+   │              │
+   │              └─► Job (when async) ──► Service
+   │
+   └─► Query (reads only)
 ```
 
-- **Controllers** are thin: validate via FormRequest, delegate to service, return Data DTOs or paginators.
-- **Services** own all business logic, state transitions, and event dispatching. They are the only layer allowed to mutate model state (`$model->update([...])`).
+- **Controllers** are thin: each action takes a FormRequest that owns both authorisation and validation, then parses the validated request into typed args and delegates to a service (commands) or query (reads). Controllers return Data DTOs / paginators. Controllers should not contain inline policy checks (`$this->user()?->can(...)`) — those live on the FormRequest.
+- **Services** own all business logic, state transitions, command operations, and event dispatching. They are the only layer allowed to mutate model state (`$model->update([...])`). Services never own reads — those live in queries.
+- **Queries** own every read operation — list endpoints, finder methods, config-backed lookups. Reads NEVER live in controller or service. See the dedicated "Queries" section below.
 - **Jobs** are thin queue adapters: declare `$tries`/`$backoff`/`middleware()`/`failed()`, then delegate to a service method. Never put business logic in a job's `handle()`. Jobs loop back into the service to perform work — the service is the single source of truth whether the call comes from a controller, a queued job, a CLI command, or a manual resend.
 - **Listeners** react to domain events — logging, broadcasting, notifications, audit. They never mutate domain state (call services if state must change).
+
+## File organisation
+
+- Within `app/{Services,Queries,Http/Controllers,...}`, use a domain subfolder only when there are 2+ files for that domain. Single-file domains live flat at the root of their layer (e.g. `app/Services/UserService.php`, not `app/Services/Users/UserService.php`).
+- This avoids one-file-deep subfolders that add navigation noise without organisational benefit. When a second file shows up for the same domain, move both into a subfolder at that point — don't pre-emptively nest.
+- FormRequests are the exception: `app/Http/Requests/{Domain}/` is used as soon as a domain has its first FormRequest, because actions tend to come in clusters (list/show/store/update/destroy/…) and the file count grows fast.
+- Webhook controllers always stay in `app/Http/Controllers/Webhooks/{Provider}/` regardless of count — they have name clashes with the frontend-facing controllers (`ProductController`, `OrderController`) and need namespace separation.
+- Listeners are namespaced by event under their domain (`app/Listeners/{Domain}/{EventName}/{Action}.php`) — that nesting is part of the listener architecture, not the file-count rule.
 
 ## State transitions
 
@@ -69,13 +80,38 @@ Controller ──► Service ──► Event ──► Listener(s)
   - `catch (Throwable $e) { Log::error(...); throw $e; }` — Laravel already logs.
   - `catch (Throwable $e) { return null; }` — silent failures hide bugs.
 
+## Queries (read-side)
+
+- Located in `app/Queries/{Domain}Query.php`. One class per domain, parallel to `{Domain}Service`. Example: `CustomOrderService` (commands) + `CustomOrderQuery` (reads).
+- Methods take typed parameters — never accept `Request`. Controllers parse the request into typed args before calling. The query layer must be testable and reusable from CLI commands without inventing a fake Request.
+- Whitelist allowed sort fields as a class constant on the query (`ALLOWED_SORT_FIELDS`). Unknown sort values silently fall back to the default — never let raw user input drive DB ordering.
+- Return raw Eloquent results (`Collection`, `LengthAwarePaginator`, `Model`, scalar). The controller wraps in DTOs via `Data::collect(...)` or `Data::from(...)`.
+- Pagination's `appends()` call belongs in the controller (it needs the request) — query methods return the paginator without it.
+- Query classes own the Eloquent builder chain directly — no third-party query-builder facade. Filter classes are invoked from query methods via `__invoke()`. Sort logic is shared via the `AppliesSort` trait. This keeps reads consistent across the app: every read goes through a typed query method, and the boilerplate (filter null-checks, sort whitelisting) is centralised.
+
 ## Filtering & search
 
-- Use Spatie Query Builder for list endpoints.
-- Custom filter classes live in `app/Http/Filters/{Domain}/{Name}Filter.php` and implement `Spatie\QueryBuilder\Filters\Filter`.
+- Filter classes live in `app/Http/Filters/{Domain}/{Name}Filter.php` and **extend** `App\Http\Filters\Filter` (abstract base class).
+- The base class handles the "skip when value is null or empty" contract in `__invoke()`. Concrete filters implement the template method `apply(Builder $query, string $value): void` — value is already cast to a non-empty string.
 - One filter class per filter key. Each handles its own value-mapping logic.
 - Coarse-grained filters (`active`/`completed`, `sent`/`unsent`) are preferred over exposing raw DB values when the UI doesn't need the fine distinction.
-- Always call `->appends(request()->query())` on paginators so filter/sort state is preserved in pagination links.
+- Invoke filters from query methods directly: `(new OrderStatusFilter)($query, $value);` — no helper needed in the query class.
+
+## FormRequests
+
+- Every controller action takes a dedicated FormRequest as its first parameter — even actions with no body and no query params, as long as they need a policy check. The FormRequest is what triggers Laravel's auth + validation lifecycle before the controller method body runs.
+- Located in `app/Http/Requests/{Domain}/{Action}{Domain}Request.php` (e.g. `ShowUserRequest`, `ListCustomOrdersRequest`). Domain subfolders follow the same nesting choices as the matching Service / Query class for that domain.
+- `authorize()` does the policy check via `$this->user()?->can('ability', $this->route('binding'))`. Returning `false` produces a 403 automatically. Never put policy checks inline in the controller.
+- `rules()` validates body AND query-string params (Laravel's validator sees both via `$request->all()`). For list endpoints, validate `filter.*`, `sort`, and `per_page`.
+- For sort fields: validate the string format/length only, NOT the allowed sort whitelist — the query class owns that whitelist via `ALLOWED_SORT_FIELDS` and falls back silently for unknown values.
+- For enum-style filters (`active|completed`, `sent|unsent`), use `in:...` validation — the same enum lives in the filter class but FormRequest gives faster, clearer 422 feedback.
+- Public endpoints (e.g. `acceptInvitation` without auth) still use a FormRequest but `authorize()` returns `true`.
+
+## Sorting
+
+- Query classes use the `App\Queries\Concerns\AppliesSort` trait.
+- Allowed sort fields are declared as a class constant (`ALLOWED_SORT_FIELDS`) on each query class.
+- Call `$this->applySort($query, $sort, self::ALLOWED_SORT_FIELDS, $default)` once per query method. The trait validates the requested field against the whitelist and falls back to the default silently for unknown fields. Leading `-` toggles descending order.
 
 ## DTOs
 

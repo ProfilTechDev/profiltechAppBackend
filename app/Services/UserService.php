@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\Users;
+namespace App\Services;
 
 use App\Authorization\Permissions;
 use App\Mail\Users\UserInvitationMail;

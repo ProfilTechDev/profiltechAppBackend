@@ -2,17 +2,17 @@
 
 namespace App\Http\Filters\Users;
 
+use App\Http\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
-use Spatie\QueryBuilder\Filters\Filter;
 
 /**
  * `?filter[search]=mattias` — matches user name OR email.
  */
-class UserSearchFilter implements Filter
+class UserSearchFilter extends Filter
 {
-    public function __invoke(Builder $query, mixed $value, string $property): void
+    protected function apply(Builder $query, string $value): void
     {
-        $needle = '%'.(string) $value.'%';
+        $needle = '%'.$value.'%';
 
         $query->where(function (Builder $q) use ($needle): void {
             $q->where('name', 'like', $needle)

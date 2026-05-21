@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Orders;
+namespace App\Http\Controllers;
 
 /**
  * General order-related endpoints. Empty for now — placeholder for

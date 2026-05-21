@@ -2,8 +2,8 @@
 
 namespace App\Http\Filters\Users;
 
+use App\Http\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
-use Spatie\QueryBuilder\Filters\Filter;
 
 /**
  * `?filter[status]=active|inactive|pending` — coarse status filter.
@@ -13,11 +13,11 @@ use Spatie\QueryBuilder\Filters\Filter;
  * - `pending`  : has a non-accepted invitation (user hasn't completed
  *                their onboarding yet)
  */
-class UserStatusFilter implements Filter
+class UserStatusFilter extends Filter
 {
-    public function __invoke(Builder $query, mixed $value, string $property): void
+    protected function apply(Builder $query, string $value): void
     {
-        match ((string) $value) {
+        match ($value) {
             'active' => $query
                 ->where('is_active', true)
                 ->whereDoesntHave('invitations', fn (Builder $q) => $q->whereNull('accepted_at')),

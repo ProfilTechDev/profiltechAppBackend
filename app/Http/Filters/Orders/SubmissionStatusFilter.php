@@ -3,8 +3,8 @@
 namespace App\Http\Filters\Orders;
 
 use App\Enums\SubmissionStatus;
+use App\Http\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
-use Spatie\QueryBuilder\Filters\Filter;
 
 /**
  * `?filter[submission_status]=sent|unsent` — coarse status-filter
@@ -15,12 +15,10 @@ use Spatie\QueryBuilder\Filters\Filter;
  *   unsent  → no submission row, OR submission with any non-Sent
  *             status (draft / queued / failed)
  */
-class SubmissionStatusFilter implements Filter
+class SubmissionStatusFilter extends Filter
 {
-    public function __invoke(Builder $query, mixed $value, string $property): void
+    protected function apply(Builder $query, string $value): void
     {
-        $value = (string) $value;
-
         if ($value === 'sent') {
             $query->whereHas(
                 'submission',

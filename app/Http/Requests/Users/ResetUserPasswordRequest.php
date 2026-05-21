@@ -15,7 +15,7 @@ class ResetUserPasswordRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->can('resetPassword', $this->route('user')) ?? false;
     }
 
     /**

@@ -1,10 +1,9 @@
 <?php
 
 use App\Data\Users\UserData;
-use App\Http\Controllers\Orders\CustomOrderController;
-use App\Http\Controllers\Products\ProductController;
-use App\Http\Controllers\Users\UserController;
-use App\Http\Controllers\Users\UserInvitationController;
+use App\Http\Controllers\CustomOrderController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\Webhooks\WooCommerce\OrderController as WebhookOrderController;
 use App\Http\Controllers\Webhooks\WooCommerce\ProductController as WebhookProductController;
 use Illuminate\Http\Request;
@@ -18,8 +17,8 @@ Route::middleware('woocommerce.webhook')->prefix('webhooks/woocommerce')->name('
 // Public invitation flow — the invitee follows a link from their email
 // and does not have a session yet.
 Route::prefix('invitations')->name('invitations.')->group(function () {
-    Route::get('/{invitation}', [UserInvitationController::class, 'show'])->name('show');
-    Route::post('/{invitation}', [UserInvitationController::class, 'accept'])->name('accept');
+    Route::get('/{invitation}', [UserController::class, 'showInvitation'])->name('show');
+    Route::post('/{invitation}', [UserController::class, 'acceptInvitation'])->name('accept');
 });
 
 Route::middleware('auth:sanctum')->group(function () {

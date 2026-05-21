@@ -3,24 +3,22 @@
 namespace App\Http\Filters\Users;
 
 use App\Authorization\Permissions;
+use App\Http\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
-use Spatie\QueryBuilder\Filters\Filter;
 
 /**
  * `?filter[permission]=warehouse.access` — filter users that have the
  * given permission assigned directly. Unknown permission keys are
  * silently ignored.
  */
-class UserPermissionFilter implements Filter
+class UserPermissionFilter extends Filter
 {
-    public function __invoke(Builder $query, mixed $value, string $property): void
+    protected function apply(Builder $query, string $value): void
     {
-        $permission = (string) $value;
-
-        if (! in_array($permission, Permissions::keys(), true)) {
+        if (! in_array($value, Permissions::keys(), true)) {
             return;
         }
 
-        $query->whereHas('permissions', fn (Builder $p) => $p->where('name', $permission));
+        $query->whereHas('permissions', fn (Builder $p) => $p->where('name', $value));
     }
 }
