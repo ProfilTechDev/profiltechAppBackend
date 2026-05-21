@@ -3,7 +3,7 @@
 namespace App\Jobs\WooCommerce;
 
 use App\Data\WooCommerce\OrderData;
-use App\Services\WooCommerce\WooCommerceService;
+use App\Services\WooCommerceService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;

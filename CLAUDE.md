@@ -1,3 +1,169 @@
+# Project Architecture (must follow)
+
+This section codifies architecture decisions established for this codebase. New code MUST follow these rules. If a change would violate them, surface the conflict before writing the code.
+
+## Layering
+
+```
+Controller ──► Service ──► Event ──► Listener(s)
+   │              │
+   │              └─► Job (when async) ──► Service
+   │
+   └─► Query (reads only)
+```
+
+- **Controllers** are thin: each action takes a FormRequest that owns both authorisation and validation, then parses the validated request into typed args and delegates to a service (commands) or query (reads). Controllers return Data DTOs / paginators. Controllers should not contain inline policy checks (`$this->user()?->can(...)`) — those live on the FormRequest.
+- **Services** own all business logic, state transitions, command operations, and event dispatching. They are the only layer allowed to mutate model state (`$model->update([...])`). Services never own reads — those live in queries.
+- **Queries** own every read operation — list endpoints, finder methods, config-backed lookups. Reads NEVER live in controller or service. See the dedicated "Queries" section below.
+- **Jobs** are thin queue adapters: declare `$tries`/`$backoff`/`middleware()`/`failed()`, then delegate to a service method. Never put business logic in a job's `handle()`. Jobs loop back into the service to perform work — the service is the single source of truth whether the call comes from a controller, a queued job, a CLI command, or a manual resend.
+- **Listeners** react to domain events — logging, broadcasting, notifications, audit. They never mutate domain state (call services if state must change).
+
+## File organisation
+
+- Within `app/{Services,Queries,Http/Controllers,...}`, use a domain subfolder only when there are 2+ files for that domain. Single-file domains live flat at the root of their layer (e.g. `app/Services/UserService.php`, not `app/Services/Users/UserService.php`).
+- This avoids one-file-deep subfolders that add navigation noise without organisational benefit. When a second file shows up for the same domain, move both into a subfolder at that point — don't pre-emptively nest.
+- FormRequests are the exception: `app/Http/Requests/{Domain}/` is used as soon as a domain has its first FormRequest, because actions tend to come in clusters (list/show/store/update/destroy/…) and the file count grows fast.
+- Webhook controllers always stay in `app/Http/Controllers/Webhooks/{Provider}/` regardless of count — they have name clashes with the frontend-facing controllers (`ProductController`, `OrderController`) and need namespace separation.
+- Listeners are namespaced by event under their domain (`app/Listeners/{Domain}/{EventName}/{Action}.php`) — that nesting is part of the listener architecture, not the file-count rule.
+
+## State transitions
+
+- Each state transition lives in a single named service method (e.g. `markSubmissionSent`, `markSubmissionFailed`).
+- The transition method updates the DB and dispatches the corresponding domain event in the same call. Never one without the other.
+- Use a private `transitionTo()` helper to avoid duplicating the update + dispatch pattern.
+- Events carry both `previousStatus` and current state so listeners can render the transition.
+
+## Events
+
+- Located in `app/Events/{Domain}/{EventName}.php`.
+- Use constructor property promotion with `public readonly` fields.
+- Lifecycle events (Before/After/Failed) live alongside state-transition events but are conceptually distinct: lifecycle is about an action, transitions are about state.
+- Events that need to broadcast implement `ShouldBroadcastNow` (sync) since we are already inside a queued context — never re-queue the broadcast.
+- Frontend listens with explicit `broadcastAs()` names. Match what the Nuxt client expects.
+- Do NOT dispatch events "just in case future notifications". Add an event only when there is a real consumer (listener, broadcast, audit).
+- Optional event fields (e.g. queue context like `attempt`/`willRetry`) should be nullable so non-queue callers can dispatch the same event without inventing fake values.
+
+## Listeners
+
+- Located in `app/Listeners/{Domain}/{EventName}/{Action}.php`. The parent folder names the event; the class name describes what the listener does.
+  - Good: `app/Listeners/CustomOrders/SubmissionStatusUpdated/LogPermanentFailure.php`
+  - Bad: `app/Listeners/LogSubmissionStatusChange.php` (flat, ambiguous)
+- One listener per side-effect. Don't combine logging + notification + audit into one class.
+- Listener names describe the action (`RecordAuditLog`, `NotifyOpsOnFailure`), not the event (the folder already says that).
+- Listeners are auto-discovered by Laravel — do not register manually.
+- Listeners must handle nullable event fields gracefully (omit fields from context when null rather than logging `null`).
+
+## Jobs
+
+- Job `handle()` should be 1–5 lines: pass queue context (`attempts()`, `tries`, etc.) to a service method, let the service do the work.
+- `failed()` callback delegates to a service method for the permanent-failure state transition. Do not put logging or business logic here.
+- Queue concerns belong on the job: `$tries`, `$backoff`, `WithoutOverlapping` middleware, `failed()`. Nothing else.
+- Restart `queue:work` (and Horizon in prod) after changing job/listener/event code — workers cache the loaded classes in memory.
+
+## Custom exceptions
+
+- Located in `app/Exceptions/{Domain}/{Name}Exception.php`.
+- Add a custom exception when at least one of these is true:
+  - Listeners need to `instanceof` check it
+  - You want a `render()` method for a specific HTTP response
+  - It carries typed metadata (`public readonly string $providerId`) that callers need
+- Do not add custom exceptions purely for log-readability — Laravel logs the class name regardless.
+
+## Error handling
+
+- Default: let exceptions bubble. Laravel's exception handler logs uncaught exceptions and renders consistent responses. Queue workers handle retries automatically.
+- Only `try`/`catch` when the catch adds value:
+  - Recovery / fallback logic
+  - Adding domain context before re-throw (dispatching an event)
+  - Mapping to a user-facing response
+- Anti-patterns:
+  - `catch (Throwable $e) { Log::error(...); throw $e; }` — Laravel already logs.
+  - `catch (Throwable $e) { return null; }` — silent failures hide bugs.
+
+## Queries (read-side)
+
+- Located in `app/Queries/{Domain}Query.php`. One class per domain, parallel to `{Domain}Service`. Example: `CustomOrderService` (commands) + `CustomOrderQuery` (reads).
+- Methods take typed parameters — never accept `Request`. Controllers parse the request into typed args before calling. The query layer must be testable and reusable from CLI commands without inventing a fake Request.
+- Whitelist allowed sort fields as a class constant on the query (`ALLOWED_SORT_FIELDS`). Unknown sort values silently fall back to the default — never let raw user input drive DB ordering.
+- Return raw Eloquent results (`Collection`, `LengthAwarePaginator`, `Model`, scalar). The controller wraps in DTOs via `Data::collect(...)` or `Data::from(...)`.
+- Pagination's `appends()` call belongs in the controller (it needs the request) — query methods return the paginator without it.
+- Query classes own the Eloquent builder chain directly — no third-party query-builder facade. Filter classes are invoked from query methods via `__invoke()`. Sort logic is shared via the `AppliesSort` trait. This keeps reads consistent across the app: every read goes through a typed query method, and the boilerplate (filter null-checks, sort whitelisting) is centralised.
+
+## Filtering & search
+
+- Filter classes live in `app/Http/Filters/{Domain}/{Name}Filter.php` and **extend** `App\Http\Filters\Filter` (abstract base class).
+- The base class handles the "skip when value is null or empty" contract in `__invoke()`. Concrete filters implement the template method `apply(Builder $query, string $value): void` — value is already cast to a non-empty string.
+- One filter class per filter key. Each handles its own value-mapping logic.
+- Coarse-grained filters (`active`/`completed`, `sent`/`unsent`) are preferred over exposing raw DB values when the UI doesn't need the fine distinction.
+- Invoke filters from query methods directly: `(new OrderStatusFilter)($query, $value);` — no helper needed in the query class.
+
+## FormRequests
+
+- Every controller action takes a dedicated FormRequest as its first parameter — even actions with no body and no query params, as long as they need a policy check. The FormRequest is what triggers Laravel's auth + validation lifecycle before the controller method body runs.
+- Located in `app/Http/Requests/{Domain}/{Action}{Domain}Request.php` (e.g. `ShowUserRequest`, `ListCustomOrdersRequest`). Domain subfolders follow the same nesting choices as the matching Service / Query class for that domain.
+- `authorize()` does the policy check via `$this->user()?->can('ability', $this->route('binding'))`. Returning `false` produces a 403 automatically. Never put policy checks inline in the controller.
+- `rules()` validates body AND query-string params (Laravel's validator sees both via `$request->all()`). For list endpoints, validate `filter.*`, `sort`, and `per_page`.
+- For sort fields: validate the string format/length only, NOT the allowed sort whitelist — the query class owns that whitelist via `ALLOWED_SORT_FIELDS` and falls back silently for unknown values.
+- For enum-style filters (`active|completed`, `sent|unsent`), use `in:...` validation — the same enum lives in the filter class but FormRequest gives faster, clearer 422 feedback.
+- Public endpoints (e.g. `acceptInvitation` without auth) still use a FormRequest but `authorize()` returns `true`.
+
+## Sorting
+
+- Query classes use the `App\Queries\Concerns\AppliesSort` trait.
+- Allowed sort fields are declared as a class constant (`ALLOWED_SORT_FIELDS`) on each query class.
+- Call `$this->applySort($query, $sort, self::ALLOWED_SORT_FIELDS, $default)` once per query method. The trait validates the requested field against the whitelist and falls back to the default silently for unknown fields. Leading `-` toggles descending order.
+
+## DTOs
+
+- Use Spatie Data for all request/response shapes. Located in `app/Data/{Domain}/{Name}Data.php`.
+- Use `public readonly` properties with constructor promotion.
+- Prefer a static `fromModel(Model $model)` factory when mapping from Eloquent — Spatie's automatic mapping doesn't traverse relations via dot-notation.
+- Use `DataCollection` and `#[DataCollectionOf]` for typed nested collections.
+
+## Snapshot pattern
+
+- Transaction-time data (order lines, order line products, line attributes) is captured into denormalised "snapshot" tables.
+- Snapshots reference the live entity (`product_id`) but contain a copy of the relevant fields at the time of capture.
+- Snapshots are immutable after creation — never updated when the source entity changes.
+
+## Frontend integration
+
+- Frontend (Nuxt) is at `app.profiltech.dk`; Laravel API is at `api.profiltech.dk` in prod.
+- Sanctum SPA auth is used. Cookies are scoped to `.profiltech.dk` so both subdomains share the session.
+- All API responses are JSON. No web views except `/up` health check.
+
+## Pagination
+
+- All list endpoints honour `?per_page=N`, clamped to `[1, 100]` (default 20).
+- Pattern: `min(100, max(1, (int) request()->query('per_page', 20)))`.
+
+## Communication & i18n
+
+- All code, comments, DB columns, variable names, and git commits are in English.
+- Danish is only used in user-facing UI labels and in conversations with the team.
+- Vendor-facing content (e.g. emails to non-Danish providers) is translated via sibling config keys (`label`, `label_en`) — NOT via Laravel's `lang/` files unless we genuinely need three+ languages.
+
+## WooCommerce integration
+
+- Webhook signature is validated via WC native HMAC (`X-WC-Webhook-Signature`) — base64 HMAC-SHA256 of raw body with `WOOCOMMERCE_WEBHOOK_SECRET`. Do not invent custom header schemes.
+- WC API consumed via WooCommerce/ subfolders (anti-corruption layer). Domain models stay flat — never named after WC concepts.
+- Race-safety: webhook handlers check `wc_modified_at` to skip stale updates; `WithoutOverlapping` middleware per `wc_order_id` on jobs.
+
+## Emails
+
+- HTML emails must be Outlook-safe: table-based layout, inline styles only, no flexbox/grid, no `<head>` styles, `<table cellpadding cellspacing border>` attributes preferred over CSS.
+- Always provide both `view` (HTML) and `text` variants.
+- Structural labels (Order, Quantity, Thickness) come from a translation array passed via `with: ['t' => ...]`. Attribute labels come from `config/custom_orders.php` with `label_en` siblings.
+- Inline Blade `@if` directives don't work when a word character precedes `@`. Use ternary expressions inside `{{ }}` instead: `{{ $cond ? '...' : '' }}`.
+
+## Octane safety
+
+- Reset state between requests — do not append to static properties or class-level caches.
+- Use `scoped` instead of `singleton` for request-scoped services.
+- Restart Octane (`php artisan octane:reload`) after route or middleware changes — routes are cached in memory.
+
+---
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

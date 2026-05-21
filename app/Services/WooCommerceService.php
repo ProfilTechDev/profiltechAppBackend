@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services\WooCommerce;
+namespace App\Services;
 
 use App\Data\WooCommerce\AddressData;
 use App\Data\WooCommerce\OrderData;

@@ -2,8 +2,8 @@
 
 namespace App\Http\Filters\Orders;
 
+use App\Http\Filters\Filter;
 use Illuminate\Database\Eloquent\Builder;
-use Spatie\QueryBuilder\Filters\Filter;
 
 /**
  * `?filter[order_status]=active|completed` — coarse filter on the
@@ -17,12 +17,10 @@ use Spatie\QueryBuilder\Filters\Filter;
  * Finer-grained filtering on individual WC statuses isn't needed by
  * the UI today; add cases here if that changes.
  */
-class OrderStatusFilter implements Filter
+class OrderStatusFilter extends Filter
 {
-    public function __invoke(Builder $query, mixed $value, string $property): void
+    protected function apply(Builder $query, string $value): void
     {
-        $value = (string) $value;
-
         if ($value === 'completed') {
             $query->where('status', 'completed');
 

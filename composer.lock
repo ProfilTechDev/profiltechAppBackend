@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1847152072390020f1567c40b17d006b",
+    "content-hash": "cb42c657967ce1082da59f49078a5692",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -5356,47 +5356,54 @@
             "time": "2026-02-21T12:49:54+00:00"
         },
         {
-            "name": "spatie/laravel-query-builder",
-            "version": "7.3.0",
+            "name": "spatie/laravel-permission",
+            "version": "7.4.1",
             "source": {
                 "type": "git",
-                "url": "https://github.com/spatie/laravel-query-builder.git",
-                "reference": "3554c005f778d9da89d44b9895d2cca149110fea"
+                "url": "https://github.com/spatie/laravel-permission.git",
+                "reference": "ef42ecb781e5534d368a3853fa161e420ad51397"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-query-builder/zipball/3554c005f778d9da89d44b9895d2cca149110fea",
-                "reference": "3554c005f778d9da89d44b9895d2cca149110fea",
+                "url": "https://api.github.com/repos/spatie/laravel-permission/zipball/ef42ecb781e5534d368a3853fa161e420ad51397",
+                "reference": "ef42ecb781e5534d368a3853fa161e420ad51397",
                 "shasum": ""
             },
             "require": {
+                "illuminate/auth": "^12.0|^13.0",
+                "illuminate/container": "^12.0|^13.0",
+                "illuminate/contracts": "^12.0|^13.0",
                 "illuminate/database": "^12.0|^13.0",
-                "illuminate/http": "^12.0|^13.0",
-                "illuminate/support": "^12.0|^13.0",
                 "php": "^8.3",
-                "spatie/laravel-package-tools": "^1.11"
+                "spatie/laravel-package-tools": "^1.0"
             },
             "require-dev": {
-                "ext-json": "*",
-                "larastan/larastan": "^3.3",
-                "mockery/mockery": "^1.4",
+                "larastan/larastan": "^3.9",
+                "laravel/passport": "^13.0",
+                "laravel/pint": "^1.0",
                 "orchestra/testbench": "^10.0|^11.0",
-                "pestphp/pest": "^4.0",
-                "phpunit/phpunit": "^12.0",
-                "spatie/invade": "^2.0"
+                "pestphp/pest": "^3.0|^4.0",
+                "pestphp/pest-plugin-laravel": "^3.0|^4.1",
+                "phpstan/phpstan": "^2.1"
             },
             "type": "library",
             "extra": {
                 "laravel": {
                     "providers": [
-                        "Spatie\\QueryBuilder\\QueryBuilderServiceProvider"
+                        "Spatie\\Permission\\PermissionServiceProvider"
                     ]
+                },
+                "branch-alias": {
+                    "dev-main": "7.x-dev",
+                    "dev-master": "7.x-dev"
                 }
             },
             "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
                 "psr-4": {
-                    "Spatie\\QueryBuilder\\": "src",
-                    "Spatie\\QueryBuilder\\Database\\Factories\\": "database/factories"
+                    "Spatie\\Permission\\": "src"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -5405,29 +5412,35 @@
             ],
             "authors": [
                 {
-                    "name": "Alex Vanderbist",
-                    "email": "alex@spatie.be",
+                    "name": "Freek Van der Herten",
+                    "email": "freek@spatie.be",
                     "homepage": "https://spatie.be",
                     "role": "Developer"
                 }
             ],
-            "description": "Easily build Eloquent queries from API requests",
-            "homepage": "https://github.com/spatie/laravel-query-builder",
+            "description": "Permission handling for Laravel 12 and up",
+            "homepage": "https://github.com/spatie/laravel-permission",
             "keywords": [
-                "laravel-query-builder",
+                "acl",
+                "laravel",
+                "permission",
+                "permissions",
+                "rbac",
+                "roles",
+                "security",
                 "spatie"
             ],
             "support": {
-                "issues": "https://github.com/spatie/laravel-query-builder/issues",
-                "source": "https://github.com/spatie/laravel-query-builder"
+                "issues": "https://github.com/spatie/laravel-permission/issues",
+                "source": "https://github.com/spatie/laravel-permission/tree/7.4.1"
             },
             "funding": [
                 {
-                    "url": "https://spatie.be/open-source/support-us",
-                    "type": "custom"
+                    "url": "https://github.com/spatie",
+                    "type": "github"
                 }
             ],
-            "time": "2026-05-02T11:22:31+00:00"
+            "time": "2026-04-29T07:59:45+00:00"
         },
         {
             "name": "spatie/php-structure-discoverer",

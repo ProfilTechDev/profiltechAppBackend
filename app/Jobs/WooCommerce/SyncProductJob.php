@@ -2,7 +2,7 @@
 
 namespace App\Jobs\WooCommerce;
 
-use App\Services\WooCommerce\WooCommerceService;
+use App\Services\WooCommerceService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\Middleware\WithoutOverlapping;

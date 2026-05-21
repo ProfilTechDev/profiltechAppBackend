@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Requests;
+namespace App\Http\Requests\CustomOrders;
 
 use App\Data\CustomOrders\SubmissionLineData;
 use Illuminate\Contracts\Validation\ValidationRule;

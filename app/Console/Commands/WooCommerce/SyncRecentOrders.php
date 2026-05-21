@@ -3,7 +3,7 @@
 namespace App\Console\Commands\WooCommerce;
 
 use App\Jobs\WooCommerce\SyncOrderJob;
-use App\Services\WooCommerce\WooCommerceService;
+use App\Services\WooCommerceService;
 use App\Support\WooCommerce\WooCommerceClient;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
