@@ -2,12 +2,18 @@
 
 namespace App\Http\Filters\Orders;
 
+use App\Enums\SubmissionStatus;
 use Illuminate\Database\Eloquent\Builder;
 use Spatie\QueryBuilder\Filters\Filter;
 
 /**
- * `?filter[status]=draft` — matches the order's submission status.
- * The pseudo-value `new` matches orders that have no submission at all.
+ * `?filter[submission_status]=sent|unsent` — coarse status-filter
+ * tailored for the custom-orders list UI. Maps to the underlying
+ * `order_submissions` table:
+ *
+ *   sent    → submission exists and status === Sent
+ *   unsent  → no submission row, OR submission with any non-Sent
+ *             status (draft / queued / failed)
  */
 class SubmissionStatusFilter implements Filter
 {
@@ -15,10 +21,23 @@ class SubmissionStatusFilter implements Filter
     {
         $value = (string) $value;
 
-        if ($value === 'new') {
-            $query->whereDoesntHave('submission');
-        } else {
-            $query->whereHas('submission', fn (Builder $q) => $q->where('status', $value));
+        if ($value === 'sent') {
+            $query->whereHas(
+                'submission',
+                fn (Builder $q) => $q->where('status', SubmissionStatus::Sent->value),
+            );
+
+            return;
+        }
+
+        if ($value === 'unsent') {
+            $query->where(function (Builder $q): void {
+                $q->whereDoesntHave('submission')
+                    ->orWhereHas(
+                        'submission',
+                        fn (Builder $sq) => $sq->where('status', '!=', SubmissionStatus::Sent->value),
+                    );
+            });
         }
     }
 }
