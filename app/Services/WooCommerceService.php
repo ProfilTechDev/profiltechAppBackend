@@ -6,7 +6,9 @@ use App\Data\WooCommerce\AddressData;
 use App\Data\WooCommerce\OrderData;
 use App\Data\WooCommerce\OrderLineData;
 use App\Data\WooCommerce\ProductData;
+use App\Data\WooCommerce\ShippingLineData;
 use App\Enums\AddressType;
+use App\Enums\ShippingCategory;
 use App\Jobs\WooCommerce\SyncProductJob;
 use App\Models\Order;
 use App\Models\OrderLine;
@@ -64,6 +66,7 @@ class WooCommerceService
             );
 
             $this->writeCustomerAndAddresses($order, $orderData);
+            $this->writeShipment($order, $orderData);
 
             $order->lines()->delete();
 
@@ -80,6 +83,51 @@ class WooCommerceService
 
             return $order;
         }, attempts: 5);
+    }
+
+    /**
+     * Persist the order's shipping snapshot. We keep a single shipment
+     * per order — the rare multi-line case (admin-added "instruction"
+     * lines with cost 0) is collapsed by picking the highest-cost
+     * line. Categorisation is resolved at write time so warehouse
+     * queries don't need to re-derive it.
+     */
+    private function writeShipment(Order $order, OrderData $orderData): void
+    {
+        $lines = $orderData->shipping_lines->toCollection()
+            ->filter(fn (ShippingLineData $line): bool => $line->method_title !== '');
+
+        if ($lines->isEmpty()) {
+            $order->shipment()->delete();
+
+            return;
+        }
+
+        $primary = $lines->sortByDesc(fn (ShippingLineData $line): float => (float) $line->total)->first();
+
+        if (! $primary instanceof ShippingLineData) {
+            return;
+        }
+
+        $rateId = $primary->rateId();
+
+        $category = ShippingCategory::fromShipping(
+            rateId: $rateId,
+            instanceId: $primary->instance_id,
+            methodId: $primary->method_id,
+        );
+
+        $order->shipment()->updateOrCreate(
+            ['order_id' => $order->id],
+            [
+                'category' => $category,
+                'rate_id' => $rateId,
+                'method_id' => $primary->method_id,
+                'instance_id' => $primary->instance_id,
+                'method_title' => $primary->method_title,
+                'total' => $primary->total,
+            ],
+        );
     }
 
     /**

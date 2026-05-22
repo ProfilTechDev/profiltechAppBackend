@@ -52,6 +52,14 @@ class Order extends Model
     }
 
     /**
+     * @return HasOne<OrderShipment, $this>
+     */
+    public function shipment(): HasOne
+    {
+        return $this->hasOne(OrderShipment::class);
+    }
+
+    /**
      * @return HasOne<OrderCustomer, $this>
      */
     public function customer(): HasOne

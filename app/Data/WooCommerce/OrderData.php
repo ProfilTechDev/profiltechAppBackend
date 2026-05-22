@@ -21,6 +21,7 @@ class OrderData extends Data
 
     /**
      * @param  DataCollection<int, OrderLineData>  $line_items
+     * @param  DataCollection<int, ShippingLineData>  $shipping_lines
      */
     public function __construct(
         public int $id,
@@ -40,5 +41,7 @@ class OrderData extends Data
         public AddressData $shipping,
         #[DataCollectionOf(OrderLineData::class)]
         public DataCollection $line_items,
+        #[DataCollectionOf(ShippingLineData::class)]
+        public DataCollection $shipping_lines,
     ) {}
 }
