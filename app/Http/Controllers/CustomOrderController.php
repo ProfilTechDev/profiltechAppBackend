@@ -73,4 +73,18 @@ class CustomOrderController
 
         return response()->json(['queued' => true]);
     }
+
+    /**
+     * Mark the order's sent submission as received from the vendor.
+     * The downstream listener stamps `packing_ready_at` so the order
+     * appears in the planning list.
+     */
+    public function received(Order $order): JsonResponse
+    {
+        $submission = $order->submission()->firstOrFail();
+
+        $this->service->markSubmissionReceived($submission);
+
+        return response()->json(['received' => true]);
+    }
 }

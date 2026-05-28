@@ -2,6 +2,7 @@
 
 namespace App\Data\Orders;
 
+use App\Enums\ProductDepartment;
 use App\Models\OrderLine;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
 use Spatie\LaravelData\Data;
@@ -26,6 +27,7 @@ class OrderLineData extends Data
         public int $quantity,
         public bool $is_custom,
         public bool $has_thickness,
+        public ?ProductDepartment $department,
         #[DataCollectionOf(AttributeData::class)]
         public DataCollection $attributes,
     ) {}
@@ -40,6 +42,7 @@ class OrderLineData extends Data
             quantity: $line->quantity,
             is_custom: $line->snapshot?->is_custom ?? false,
             has_thickness: $line->product?->has_thickness ?? false,
+            department: $line->snapshot?->department,
             attributes: AttributeData::collect($visible, DataCollection::class),
         );
     }

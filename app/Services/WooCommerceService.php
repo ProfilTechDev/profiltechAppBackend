@@ -8,6 +8,8 @@ use App\Data\WooCommerce\OrderLineData;
 use App\Data\WooCommerce\ProductData;
 use App\Data\WooCommerce\ShippingLineData;
 use App\Enums\AddressType;
+use App\Enums\DeliveryFlow;
+use App\Enums\ProductDepartment;
 use App\Enums\ShippingCategory;
 use App\Jobs\WooCommerce\SyncProductJob;
 use App\Models\Order;
@@ -81,8 +83,51 @@ class WooCommerceService
                 $this->writeSnapshot($orderLine, $product, $line);
             }
 
+            $this->applyPlanningDefaults($order);
+
             return $order;
         }, attempts: 5);
+    }
+
+    /**
+     * Seed the new planning fields on first sync but never overwrite an
+     * existing admin choice:
+     *
+     *   - delivery_flow defaults from the shipment category, leaving
+     *     Unknown / un-shipped orders for manual triage (`null`).
+     *   - packing_ready_at is set to now() for non-custom orders so they
+     *     surface in the planning list immediately. Custom orders stay
+     *     null until admin marks the OrderSubmission as received from
+     *     the vendor (the goods have to physically arrive before we can
+     *     pack the rest).
+     */
+    private function applyPlanningDefaults(Order $order): void
+    {
+        $dirty = false;
+
+        if ($order->delivery_flow === null) {
+            $derived = DeliveryFlow::fromShippingCategory($order->shipment?->category);
+
+            if ($derived !== null) {
+                $order->delivery_flow = $derived;
+                $dirty = true;
+            }
+        }
+
+        if ($order->packing_ready_at === null) {
+            $hasCustomLine = $order->lines()
+                ->whereHas('snapshot', fn ($q) => $q->where('is_custom', true))
+                ->exists();
+
+            if (! $hasCustomLine) {
+                $order->packing_ready_at = now();
+                $dirty = true;
+            }
+        }
+
+        if ($dirty) {
+            $order->save();
+        }
     }
 
     /**
@@ -239,10 +284,15 @@ class WooCommerceService
     private function upsertProductFromData(ProductData $data, ?int $parentWcId): Product
     {
         // Variations don't carry categories themselves — they inherit
-        // has_thickness from the parent product.
-        $hasThickness = $parentWcId !== null
-            ? $this->ensureParentProduct($parentWcId)->has_thickness
-            : $data->hasThickness();
+        // has_thickness AND department from the parent product.
+        if ($parentWcId !== null) {
+            $parent = $this->ensureParentProduct($parentWcId);
+            $hasThickness = $parent->has_thickness;
+            $department = $parent->department ?? ProductDepartment::Accessories;
+        } else {
+            $hasThickness = $data->hasThickness();
+            $department = ProductDepartment::fromCategories($data->categories);
+        }
 
         return Product::updateOrCreate(
             ['wc_id' => $data->id],
@@ -251,6 +301,7 @@ class WooCommerceService
                 'name' => $data->name,
                 'is_custom' => $data->is_custom,
                 'has_thickness' => $hasThickness,
+                'department' => $department,
             ],
         );
     }
@@ -277,6 +328,7 @@ class WooCommerceService
                 'name' => $parentData->name,
                 'is_custom' => $parentData->is_custom,
                 'has_thickness' => $parentData->hasThickness(),
+                'department' => ProductDepartment::fromCategories($parentData->categories),
             ],
         );
     }
@@ -329,6 +381,7 @@ class WooCommerceService
             [
                 'name' => $line->name !== '' ? $line->name : $product->name,
                 'is_custom' => $product->is_custom,
+                'department' => $product->department ?? ProductDepartment::Accessories,
             ],
         );
 

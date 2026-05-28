@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProductDepartment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -17,11 +18,13 @@ class Product extends Model
         'name',
         'is_custom',
         'has_thickness',
+        'department',
     ];
 
     protected $casts = [
         'is_custom' => 'boolean',
         'has_thickness' => 'boolean',
+        'department' => ProductDepartment::class,
     ];
 
     /**

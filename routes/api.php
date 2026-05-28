@@ -2,7 +2,9 @@
 
 use App\Data\Users\UserData;
 use App\Http\Controllers\CustomOrderController;
+use App\Http\Controllers\FulfillmentController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\TourController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Webhooks\WooCommerce\OrderController as WebhookOrderController;
 use App\Http\Controllers\Webhooks\WooCommerce\ProductController as WebhookProductController;
@@ -36,7 +38,29 @@ Route::middleware('auth:sanctum')->group(function () {
             Route::get('/', [CustomOrderController::class, 'submission'])->name('show');
             Route::patch('/', [CustomOrderController::class, 'update'])->name('update');
             Route::post('/send', [CustomOrderController::class, 'send'])->name('send');
+            Route::post('/received', [CustomOrderController::class, 'received'])->name('received');
         });
+    });
+
+    Route::prefix('fulfillment')->name('fulfillment.')->group(function () {
+        Route::get('/', [FulfillmentController::class, 'index'])->name('index');
+        Route::patch('/orders/{order}/flow', [FulfillmentController::class, 'setFlow'])->name('orders.set-flow');
+        Route::patch('/orders/{order}/packing-status', [FulfillmentController::class, 'setPackingStatus'])->name('orders.set-packing-status');
+    });
+
+    Route::prefix('tours')->name('tours.')->group(function () {
+        Route::get('/', [TourController::class, 'index'])->name('index');
+        Route::post('/', [TourController::class, 'store'])->name('store');
+        Route::get('/{tour}', [TourController::class, 'show'])->name('show');
+        Route::patch('/{tour}', [TourController::class, 'update'])->name('update');
+        Route::delete('/{tour}', [TourController::class, 'destroy'])->name('destroy');
+
+        Route::post('/{tour}/approve', [TourController::class, 'approve'])->name('approve');
+        Route::post('/{tour}/complete', [TourController::class, 'complete'])->name('complete');
+        Route::post('/{tour}/reorder', [TourController::class, 'reorder'])->name('reorder');
+
+        Route::post('/{tour}/orders', [TourController::class, 'addOrder'])->name('orders.add');
+        Route::delete('/{tour}/orders/{order}', [TourController::class, 'removeOrder'])->name('orders.remove');
     });
 
     Route::prefix('users')->name('users.')->group(function () {

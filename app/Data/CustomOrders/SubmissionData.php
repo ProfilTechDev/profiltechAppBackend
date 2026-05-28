@@ -23,6 +23,7 @@ class SubmissionData extends Data
         public ?string $subject,
         public ?string $message,
         public ?CarbonImmutable $sent_at,
+        public ?CarbonImmutable $received_at,
         #[DataCollectionOf(SubmissionLineData::class)]
         public DataCollection $lines,
     ) {}
@@ -35,6 +36,7 @@ class SubmissionData extends Data
             subject: $submission->subject,
             message: $submission->message,
             sent_at: $submission->sent_at,
+            received_at: $submission->received_at,
             lines: SubmissionLineData::collect($submission->lines, DataCollection::class),
         );
     }

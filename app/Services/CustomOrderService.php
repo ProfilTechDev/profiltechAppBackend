@@ -6,6 +6,7 @@ use App\Data\CustomOrders\SubmissionLineData;
 use App\Enums\SubmissionStatus;
 use App\Events\CustomOrders\AfterSuccessfulSubmissionSend;
 use App\Events\CustomOrders\BeforeSubmissionSend;
+use App\Events\CustomOrders\SubmissionReceived;
 use App\Events\CustomOrders\SubmissionSendFailed;
 use App\Events\CustomOrders\SubmissionStatusUpdated;
 use App\Exceptions\CustomOrders\MissingProviderEmailException;
@@ -145,6 +146,31 @@ class CustomOrderService
             // and eventually trigger `SendSubmissionJob::failed()`.
             throw $e;
         }
+    }
+
+    /**
+     * Mark a sent submission as received from the vendor — the goods
+     * have physically arrived. Persists `received_at` and dispatches
+     * `SubmissionReceived`, whose listener stamps `packing_ready_at`
+     * on the parent order. Idempotent: a second call is a no-op.
+     */
+    public function markSubmissionReceived(OrderSubmission $submission): OrderSubmission
+    {
+        if ($submission->status !== SubmissionStatus::Sent) {
+            throw ValidationException::withMessages([
+                'status' => 'Only sent submissions can be marked received.',
+            ]);
+        }
+
+        if ($submission->received_at !== null) {
+            return $submission;
+        }
+
+        $submission->update(['received_at' => now()]);
+
+        SubmissionReceived::dispatch($submission);
+
+        return $submission;
     }
 
     /**

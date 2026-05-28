@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Data\Orders\AttributeData;
+use App\Enums\ProductDepartment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,10 +25,12 @@ class OrderLineProduct extends Model
         'order_line_id',
         'name',
         'is_custom',
+        'department',
     ];
 
     protected $casts = [
         'is_custom' => 'boolean',
+        'department' => ProductDepartment::class,
     ];
 
     /**

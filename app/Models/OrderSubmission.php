@@ -21,11 +21,13 @@ class OrderSubmission extends Model
         'subject',
         'message',
         'sent_at',
+        'received_at',
     ];
 
     protected $casts = [
         'status' => SubmissionStatus::class,
         'sent_at' => 'immutable_datetime',
+        'received_at' => 'immutable_datetime',
     ];
 
     /**
